@@ -1,0 +1,1 @@
+{"bert_model": "bert-base-cased", "do_lower": false, "max_seq_length": 128, "num_labels": 10, "label_map": {"1": "O", "2": "loc", "3": "org", "4": "per", "5": "misc", "6": "deriv-per", "7": "X", "8": "[CLS]", "9": "[SEP]"}}

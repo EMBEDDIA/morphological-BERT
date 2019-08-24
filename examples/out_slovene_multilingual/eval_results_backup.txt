@@ -1,0 +1,7 @@
+             precision    recall  f1-score   support
+
+        loc     0.8750    0.8750    0.8750         8
+        per     0.9630    0.8966    0.9286        29
+        org     0.6667    0.6667    0.6667         3
+
+avg / total     0.9231    0.8750    0.8982        40
