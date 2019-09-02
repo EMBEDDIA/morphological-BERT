@@ -1169,19 +1169,28 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_labels, num_ud_dependencies):
+    def __init__(self, config, num_labels, upos_num, others_map):
         super(BertForTokenClassificationUdExpanded, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.apply(self.init_bert_weights)
-        self.combined_layer_1 = nn.Linear(config.hidden_size + 10, config.hidden_size)
+        self.other_embeddings = nn.ModuleList()
+        self.other_embeddings.append(nn.Embedding(upos_num, 15))
+        for feat in others_map:
+            self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
+
+        print(len(self.other_embeddings))
+        self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings), config.hidden_size)
         self.combined_layer_2 = nn.Linear(config.hidden_size, config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         # self.num_ud_dependencies = num_ud_dependencies
-        self.ud_embeddings = nn.Embedding(num_ud_dependencies, 10)
+        self.ud_embeddings = nn.Embedding(upos_num, 10)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, ud_ids=None, use_ud=False):
+
+        # self.other_embeddings = tuple(self.other_embeddings)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, other_ids=None, use_ud=False):
         # if not ud_ids:
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         # else:
@@ -1202,9 +1211,16 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
 
 
             # target = Variable(target)
+            other_embeddings = []
+            for i in range(len(self.other_embeddings)):
+                other_embeddings.append(self.other_embeddings[i](other_ids[i]))
 
-            ud_embeddings = self.ud_embeddings(ud_ids)
-            concatenated_tensor = torch.cat((sequence_output, ud_embeddings), 2)
+            # other_embeddings = self.ud_embeddings(other_ids[0])
+            # other_embeddings = self.TEST[0](other_ids[0])
+            # for emb in self.other_embeddings:
+            #     a = emb(other_ids[0])
+            # other_embeddings = self.other_embeddings[0](other_ids[0])
+            concatenated_tensor = torch.cat((sequence_output, *other_embeddings), 2)
             sequence_output = self.combined_layer_1(concatenated_tensor)
             sequence_output = self.dropout(sequence_output)
             sequence_output = self.combined_layer_2(sequence_output)

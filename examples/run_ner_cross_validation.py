@@ -59,6 +59,244 @@ ud_map = {
     'PART': 17
 }
 
+universal_features_map = {
+    # lexical features
+    'PronType': {
+        '': 0,
+        'Art': 11,
+        'Dem': 1,
+        'Emp': 2,
+        'Exc': 3,
+        'Ind': 4,
+        'Int': 5,
+        'Neg': 6,
+        'Prs': 7,
+        'Rcp': 8,
+        'Rel': 9,
+        'Tot': 10,
+
+    },
+    'NumType': {
+        '': 0,
+        'Card': 7,
+        'Dist': 1,
+        'Frac': 2,
+        'Mult': 3,
+        'Ord': 4,
+        'Range': 5,
+        'Sets': 6
+    },
+    'Poss': {
+        '': 0,
+        'Yes': 1
+    },
+    'Reflex': {
+        '': 0,
+        'Yes': 1
+    },
+    'Foreign': {
+        '': 0,
+        'Yes': 1
+    },
+    'Abbr': {
+        '': 0,
+        'Yes': 1
+    },
+
+    # Inflectional features (nominal)
+    'Gender': {
+        '': 0,
+        'Com': 4,
+        'Fem': 1,
+        'Masc': 2,
+        'Neut': 3
+    },
+    'Animacy': {
+        '': 0,
+        'Anim': 4,
+        'Hum': 1,
+        'Inan': 2,
+        'Nhum': 3,
+    },
+    'NounClass': {
+        '': 0,
+        'Bantu1': 20,
+        'Bantu2': 1,
+        'Bantu3': 2,
+        'Bantu4': 3,
+        'Bantu5': 4,
+        'Bantu6': 5,
+        'Bantu7': 6,
+        'Bantu8': 7,
+        'Bantu9': 8,
+        'Bantu10': 9,
+        'Bantu11': 10,
+        'Bantu12': 11,
+        'Bantu13': 12,
+        'Bantu14': 13,
+        'Bantu15': 14,
+        'Bantu16': 15,
+        'Bantu17': 16,
+        'Bantu18': 17,
+        'Bantu19': 18,
+        'Bantu20': 19
+    },
+    'Number': {
+        '': 0,
+        'Coll': 11,
+        'Count': 1,
+        'Dual': 2,
+        'Grpa': 3,
+        'Grpl': 4,
+        'Inv': 5,
+        'Pauc': 6,
+        'Plur': 7,
+        'Ptan': 8,
+        'Sing': 9,
+        'Tri': 10
+    },
+    'Case': {
+        '': 0,
+        'Abs': 34,
+        'Acc': 1,
+        'Erg': 2,
+        'Nom': 3,
+        'Abe': 4,
+        'Ben': 5,
+        'Cau': 6,
+        'Cmp': 7,
+        'Cns': 8,
+        'Com': 9,
+        'Dat': 10,
+        'Dis': 11,
+        'Equ': 12,
+        'Gen': 13,
+        'Ins': 14,
+        'Par': 15,
+        'Tem': 16,
+        'Tra': 17,
+        'Voc': 18,
+        'Abl': 19,
+        'Add': 20,
+        'Ade': 21,
+        'All': 22,
+        'Del': 23,
+        'Ela': 24,
+        'Ess': 25,
+        'Ill': 26,
+        'Ine': 27,
+        'Lat': 28,
+        'Loc': 29,
+        'Per': 30,
+        'Sub': 31,
+        'Sup': 32,
+        'Ter': 33
+    },
+    'Definite': {
+        '': 0,
+        'Com': 5,
+        'Cons': 1,
+        'Def': 2,
+        'Ind': 3,
+        'Spec': 4
+    },
+    'Degree': {
+        'Abs': 0,
+        'Cmp': 1,
+        'Equ': 2,
+        'Pos': 3,
+        'Sup': 4
+    },
+
+    # Inflectional features (verbal)
+    'VerbForm': {
+        '': 0,
+        'Conv': 8,
+        'Fin': 1,
+        'Gdv': 2,
+        'Ger': 3,
+        'Inf': 4,
+        'Part': 5,
+        'Sup': 6,
+        'Vnoun': 7
+    },
+    'Mood': {
+        '': 0,
+        'Adm': 12,
+        'Cnd': 1,
+        'Des': 2,
+        'Imp': 3,
+        'Ind': 4,
+        'Jus': 5,
+        'Nec': 6,
+        'Opt': 7,
+        'Pot': 8,
+        'Prp': 9,
+        'Qot': 10,
+        'Sub': 11
+    },
+    'Tense': {
+        '': 0,
+        'Fut': 5,
+        'Imp': 1,
+        'Past': 2,
+        'Pqp': 3,
+        'Pres': 4
+    },
+    'Aspect': {
+        '': 0,
+        'Hab': 6,
+        'Imp': 1,
+        'Iter': 2,
+        'Perf': 3,
+        'Prog': 4,
+        'Prosp': 5
+    },
+    'Voice': {
+        '': 0,
+        'Act': 8,
+        'Antip': 1,
+        'Cau': 2,
+        'Dir': 3,
+        'Inv': 4,
+        'Mid': 5,
+        'Pass': 6,
+        'Rcp': 7
+    },
+    'Evident': {
+        '': 0,
+        'Fh': 2,
+        'Nfh': 1
+    },
+    'Polarity': {
+        '': 0,
+        'Neg': 2,
+        'Pos': 1
+    },
+    'Person': {
+        '': 0,
+        '0': 5,
+        '1': 1,
+        '2': 2,
+        '3': 3,
+        '4': 4
+    },
+    'Polite': {
+        '': 0,
+        'Elev': 4,
+        'Form': 1,
+        'Humb': 2,
+        'Infm': 3
+    },
+    'Clusivity': {
+        '': 0,
+        'Ex': 2,
+        'In': 1
+    }
+}
+
+universal_features_list = universal_features_map.keys()
+
 ud_list = ['', 'ADJ', 'ADV', 'INTJ', 'NOUN', 'PROPN', 'VERB', 'ADP', 'AUX', 'CCONJ', 'DET', 'NUM', 'PRON', 'SCONJ',
            'PUNCT', 'SYM', 'X', 'PART']
 
@@ -86,12 +324,12 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id, ud_ids=None):
+    def __init__(self, input_ids, input_mask, segment_ids, label_id, other_ids=None):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.label_id = label_id
-        self.ud_ids = ud_ids
+        self.other_ids = other_ids
 
 
 def readfile(filename):
@@ -186,8 +424,8 @@ def readfile_embeddia(filename, cv_part):
                 other['msd'] = data['msd']
             if 'upos' in data:
                 other['upos'] = data['upos']
-            if 'feat' in data:
-                other['feat'] = data['feat']
+            if 'feats' in data:
+                other['feats'] = data['feats']
             if 'xpos' in data:
                 other['xpos'] = data['xpos']
             if 'lemma' in data:
@@ -275,75 +513,6 @@ class NerEmbeddiaProcessor(DataProcessor):
         return examples
 
 
-class NerSlProcessor(DataProcessor):
-    """Processor for the CoNLL-2003 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            readfilesl(os.path.join(data_dir, "train_msd.tsv")), "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            readfilesl(os.path.join(data_dir, "test_msd.tsv")), "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            readfilesl(os.path.join(data_dir, "test_msd.tsv")), "test")
-
-    def get_labels(self):
-        # return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
-        return ["O", "loc", "org", "per", "misc", "deriv-per", "X", "[CLS]", "[SEP]"]
-
-    def _create_examples(self, lines, set_type):
-        examples = []
-        for i, (sentence, label) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
-            # if math.isnan(sentence):
-            #     sentence = ''
-            # if i == 1081:
-            #     print(i)
-            text_a = ' '.join(sentence)
-            text_b = None
-            label = label
-            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class NerProcessor(DataProcessor):
-    """Processor for the CoNLL-2003 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "train.txt")), "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "valid.txt")), "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
-
-    def get_labels(self):
-        return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
-
-    def _create_examples(self, lines, set_type):
-        examples = []
-        for i, (sentence, label) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
-            text_a = ' '.join(sentence)
-            text_b = None
-            label = label
-            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, other=None):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -360,7 +529,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens = []
         labels = []
         if other:
-            others = []
+            others = {}
+            if other['upos']:
+                others['upos'] = []
+            if other['feats']:
+                others['feats'] = []
         # print(textlist)
         # print(labellist)
         parentheses_occurences = 0
@@ -373,17 +546,20 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 parentheses_occurences += 1
                 label_1 = 'O'
                 if other:
-                    ud_1 = "UposTag=ADP|Case=Acc"
+                    # ud_1 = "UposTag=ADP|Case=Acc"
+                    upos = "ADP"
             else:
                 i = i - parentheses_occurences
                 if i >= len(labellist):
                     print('ERROR')
                 label_1 = labellist[i]
                 if other:
-                    ud_1 = otherlist[i]
+                    upos = otherlist[i]['upos']
+                    feats = otherlist[i]['feats']
             for m in range(len(token)):
                 if other:
-                    others.append(ud_1)
+                    others['upos'].append(upos)
+                    others['feats'].append(feats)
                 if m == 0:
                     labels.append(label_1)
                 else:
@@ -394,29 +570,55 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         ntokens = []
         segment_ids = []
         label_ids = []
+        # create array of arrays of universal_feature_map and upos
         if other:
-            ud_ids = []
+            # ud_ids = []
+            # for beginning tag use 0 - for separators
+            other_ids = [[0] for i in range(len(universal_features_map) + 1)]
         ntokens.append("[CLS]")
         segment_ids.append(0)
         label_ids.append(label_map["[CLS]"])
-        if other:
-            ud_ids.append(0)
+
+        # if other:
+        #     ud_ids.append(0)
+        # ud_ids = None
         for i, token in enumerate(tokens):
             ntokens.append(token)
             segment_ids.append(0)
             label_ids.append(label_map[labels[i]])
 
             if other:
-                split = others[i].split('|')[0].split('=')
-                if len(split) > 1:
-                    ud_ids.append(ud_map[split[1]])
-                else:
-                    ud_ids.append(ud_map[split[0]])
+                this_feat_dict = {}
+                if others['feats'][i] != '_':
+                    word_feats = others['feats'][i].split('|')
+                    for feat in word_feats:
+                        feat_split = feat.split('=')
+                        this_feat_dict[feat_split[0]] = feat_split[1]
+                upos_append = others['upos'][i]
+                # if len(split) > 1:
+                #     ud_ids.append(ud_map[upos_append])
+                # else:
+                other_ids[0].append(ud_map[upos_append])
+                # add 0 if no feature of specific type is given or correct index of feature if it is given
+                # a = universal_features_map
+                for index, key in enumerate(universal_features_map):
+                    if key in this_feat_dict and this_feat_dict[key] in universal_features_map[key]:
+                        other_ids[index + 1].append(universal_features_map[key][this_feat_dict[key]])
+                    else:
+                        other_ids[index + 1].append(0)
+                # print(key)
+
+
+
+
+                # ud_ids.append(ud_map[upos_append])
         ntokens.append("[SEP]")
         segment_ids.append(0)
         label_ids.append(label_map["[SEP]"])
         if other:
-            ud_ids.append(0)
+            for i in range(len(other_ids)):
+                other_ids[i].append(0)
+            # ud_ids.append(0)
         input_ids = tokenizer.convert_tokens_to_ids(ntokens)
 
         input_mask = [1] * len(input_ids)
@@ -426,13 +628,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             segment_ids.append(0)
             label_ids.append(0)
             if other:
-                ud_ids.append(0)
+                for i in range(len(other_ids)):
+                    other_ids[i].append(0)
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
         if other:
-            assert len(ud_ids) == max_seq_length
+            assert len(other_ids[0]) == max_seq_length
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -442,7 +645,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             if other:
-                logger.info("ud_ids: %s" % " ".join([str(x) for x in ud_ids]))
+                logger.info("ud_ids: %s" % " ".join([str(x) for x in other_ids[0]]))
             logger.info(
                 "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
             # logger.info("label: %s (id = %d)" % (example.label, label_ids))
@@ -454,13 +657,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                               input_mask=input_mask,
                               segment_ids=segment_ids,
                               label_id=label_ids,
-                              ud_ids=ud_ids))
+                              other_ids=other_ids))
         else:
             features.append(
                 InputFeatures(input_ids=input_ids,
                               input_mask=input_mask,
                               segment_ids=segment_ids,
-                              label_id=label_ids))
+                              other_ids=other_ids))
 
     return features
 
@@ -485,9 +688,7 @@ def main():
 
         # ud_translation = read_ud_translations(os.path.join(args.data_dir, 'sl_multext-ud'))
 
-        processors = {"ner": NerProcessor,
-                      "nersl": NerSlProcessor,
-                      "nerembeddia": NerEmbeddiaProcessor}
+        processors = {"nerembeddia": NerEmbeddiaProcessor}
 
         if args.local_rank == -1 or args.no_cuda:
             device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
@@ -548,7 +749,8 @@ def main():
             model = BertForTokenClassificationUdExpanded.from_pretrained(args.bert_model,
                                                                          cache_dir=cache_dir,
                                                                          num_labels=num_labels,
-                                                                         num_ud_dependencies=num_ud_dependencies)
+                                                                         upos_num=num_ud_dependencies,
+                                                                         others_map=universal_features_map)
         else:
             model = BertForTokenClassification.from_pretrained(args.bert_model,
                                                                cache_dir=cache_dir,
@@ -610,10 +812,13 @@ def main():
             all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
             all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
             all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
+            # all_feats_ids =
             if args.upos:
-                all_ud_ids = torch.tensor([f.ud_ids for f in train_features], dtype=torch.long)
-            if args.upos:
-                train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_ud_ids)
+                all_other_ids = [torch.tensor([f.other_ids[other_i] for f in train_features], dtype=torch.long) for other_i in range(len(train_features[0].other_ids))]
+                # all_ud_ids = torch.tensor([f.ud_ids for f in train_features], dtype=torch.long)
+            # if args.upos:
+                train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, *all_other_ids)
+            #     train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
             else:
                 train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
             if args.local_rank == -1:
@@ -634,15 +839,14 @@ def main():
                 for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                     batch = tuple(t.to(device) for t in batch)
                     if args.upos:
-                        input_ids, input_mask, segment_ids, label_ids, ud_ids = batch
+                        input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                        loss = model(input_ids, segment_ids, input_mask, label_ids, other_ids, use_ud=args.upos)
                     else:
                         input_ids, input_mask, segment_ids, label_ids = batch
                         ud_ids = None
-                    # loss = model(input_ids, segment_ids, input_mask, label_ids)
-                    if args.upos:
-                        loss = model(input_ids, segment_ids, input_mask, label_ids, ud_ids, use_ud=args.upos)
-                    else:
                         loss = model(input_ids, segment_ids, input_mask, label_ids)
+                    # loss = model(input_ids, segment_ids, input_mask, label_ids)
+
                     if n_gpu > 1:
                         loss = loss.mean()  # mean() to average on multi-gpu.
                     if args.gradient_accumulation_steps > 1:
@@ -672,7 +876,7 @@ def main():
                 if args.do_eval_in_training:
                     eval_examples = processor.get_dev_examples(args.data_dir, cross_validation_part)
                     eval_features = convert_examples_to_features(
-                        eval_examples, label_list, args.max_seq_length, tokenizer, use_ud=args.upos)
+                        eval_examples, label_list, args.max_seq_length, tokenizer, other=other_features)
                     logger.info("***** Running evaluation *****")
                     logger.info("  Num examples = %d", len(eval_examples))
                     logger.info("  Batch size = %d", args.eval_batch_size)
@@ -775,7 +979,7 @@ def main():
         if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
             eval_examples = processor.get_dev_examples(args.data_dir, cross_validation_part)
             eval_features = convert_examples_to_features(
-                eval_examples, label_list, args.max_seq_length, tokenizer, use_ud=args.upos)
+                eval_examples, label_list, args.max_seq_length, tokenizer, other=other_features)
             logger.info("***** Running evaluation *****")
             logger.info("  Num examples = %d", len(eval_examples))
             logger.info("  Batch size = %d", args.eval_batch_size)
