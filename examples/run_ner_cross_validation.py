@@ -19,6 +19,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from seqeval.metrics.sequence_labeling import internal_report
+from torch import nn
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import (CONFIG_NAME, WEIGHTS_NAME,
@@ -524,16 +525,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         if textlist == ['']:
             continue
         labellist = example.label
-        if other:
+        if other['upos']:
             otherlist = example.other
         tokens = []
         labels = []
-        if other:
-            others = {}
-            if other['upos']:
-                others['upos'] = []
-            if other['feats']:
-                others['feats'] = []
+        others = {}
+        if other['upos']:
+            others['upos'] = []
+        if other['feats']:
+            others['feats'] = []
         # print(textlist)
         # print(labellist)
         parentheses_occurences = 0
@@ -545,7 +545,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             if word == '"':
                 parentheses_occurences += 1
                 label_1 = 'O'
-                if other:
+                if other['upos']:
                     # ud_1 = "UposTag=ADP|Case=Acc"
                     upos = "ADP"
             else:
@@ -553,11 +553,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 if i >= len(labellist):
                     print('ERROR')
                 label_1 = labellist[i]
-                if other:
+                if other['upos']:
                     upos = otherlist[i]['upos']
                     feats = otherlist[i]['feats']
             for m in range(len(token)):
-                if other:
+                if other['upos']:
                     others['upos'].append(upos)
                     others['feats'].append(feats)
                 if m == 0:
@@ -571,7 +571,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         segment_ids = []
         label_ids = []
         # create array of arrays of universal_feature_map and upos
-        if other:
+        if other['upos']:
             # ud_ids = []
             # for beginning tag use 0 - for separators
             other_ids = [[0] for i in range(len(universal_features_map) + 1)]
@@ -579,7 +579,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         segment_ids.append(0)
         label_ids.append(label_map["[CLS]"])
 
-        # if other:
+        # if other['upos']:
         #     ud_ids.append(0)
         # ud_ids = None
         for i, token in enumerate(tokens):
@@ -587,7 +587,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             segment_ids.append(0)
             label_ids.append(label_map[labels[i]])
 
-            if other:
+            if other['upos']:
                 this_feat_dict = {}
                 if others['feats'][i] != '_':
                     word_feats = others['feats'][i].split('|')
@@ -615,7 +615,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         ntokens.append("[SEP]")
         segment_ids.append(0)
         label_ids.append(label_map["[SEP]"])
-        if other:
+        if other['upos']:
             for i in range(len(other_ids)):
                 other_ids[i].append(0)
             # ud_ids.append(0)
@@ -627,14 +627,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             input_mask.append(0)
             segment_ids.append(0)
             label_ids.append(0)
-            if other:
+            if other['upos']:
                 for i in range(len(other_ids)):
                     other_ids[i].append(0)
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
-        if other:
+        if other['upos']:
             assert len(other_ids[0]) == max_seq_length
 
         if ex_index < 5:
@@ -644,14 +644,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 [str(x) for x in tokens]))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            if other:
+            if other['upos']:
                 logger.info("ud_ids: %s" % " ".join([str(x) for x in other_ids[0]]))
             logger.info(
                 "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
             # logger.info("label: %s (id = %d)" % (example.label, label_ids))
 
 
-        if other:
+        if other['upos']:
             features.append(
                 InputFeatures(input_ids=input_ids,
                               input_mask=input_mask,
@@ -663,7 +663,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 InputFeatures(input_ids=input_ids,
                               input_mask=input_mask,
                               segment_ids=segment_ids,
-                              other_ids=other_ids))
+                              label_id=label_ids))
 
     return features
 
@@ -884,13 +884,15 @@ def main():
                     all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
                     all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
                     all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+
                     if args.upos:
-                        all_ud_ids = torch.tensor([f.ud_ids for f in eval_features], dtype=torch.long)
-                    if args.upos:
+                        all_other_ids = [torch.tensor([f.other_ids[other_i] for f in eval_features], dtype=torch.long)
+                                         for other_i in range(len(eval_features[0].other_ids))]
                         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
-                                                  all_ud_ids)
+                                                  *all_other_ids)
                     else:
                         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
                     # Run prediction for full data
                     eval_sampler = SequentialSampler(eval_data)
                     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -902,7 +904,7 @@ def main():
                     label_map = {i: label for i, label in enumerate(label_list, 1)}
                     for batch in tqdm(eval_dataloader, desc="Evaluating"):
                         if args.upos:
-                            input_ids, input_mask, segment_ids, label_ids, ud_ids = batch
+                            input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
                         else:
                             input_ids, input_mask, segment_ids, label_ids = batch
 
@@ -911,11 +913,14 @@ def main():
                         segment_ids = segment_ids.to(device)
                         label_ids = label_ids.to(device)
                         if args.upos:
-                            ud_ids = ud_ids.to(device)
+                            new_other_ids = []
+                            for other_id in other_ids:
+                                new_other_ids.append(other_id.to(device))
+                            other_ids = new_other_ids
 
                         with torch.no_grad():
                             if args.upos:
-                                logits = model(input_ids, segment_ids, input_mask, ud_ids=ud_ids, use_ud=True)
+                                logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, use_ud=True)
                             else:
                                 logits = model(input_ids, segment_ids, input_mask)
 
@@ -988,9 +993,10 @@ def main():
             all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
             all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
             if args.upos:
-                all_ud_ids = torch.tensor([f.ud_ids for f in eval_features], dtype=torch.long)
-            if args.upos:
-                eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_ud_ids)
+                all_other_ids = [torch.tensor([f.other_ids[other_i] for f in eval_features], dtype=torch.long)
+                                 for other_i in range(len(eval_features[0].other_ids))]
+                eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
+                                          *all_other_ids)
             else:
                 eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
             # Run prediction for full data
@@ -1004,7 +1010,7 @@ def main():
             label_map = {i: label for i, label in enumerate(label_list, 1)}
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 if args.upos:
-                    input_ids, input_mask, segment_ids, label_ids, ud_ids = batch
+                    input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
                 else:
                     input_ids, input_mask, segment_ids, label_ids = batch
 
@@ -1013,11 +1019,14 @@ def main():
                 segment_ids = segment_ids.to(device)
                 label_ids = label_ids.to(device)
                 if args.upos:
-                    ud_ids = ud_ids.to(device)
+                    new_other_ids = []
+                    for other_id in other_ids:
+                        new_other_ids.append(other_id.to(device))
+                    other_ids = new_other_ids
 
                 with torch.no_grad():
                     if args.upos:
-                        logits = model(input_ids, segment_ids, input_mask, ud_ids=ud_ids, use_ud=True)
+                        logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, use_ud=True)
                     else:
                         logits = model(input_ids, segment_ids, input_mask)
 
@@ -1224,12 +1233,14 @@ def main():
             mydict = pickle.load(reader)
         return mydict
 
+    # actually executing code
     # for i in range(1, 12):
     #     accuracies.append(bert_cross_validation_iteration(i))
 
-
+    # testing on one part of cross validation
     accuracies.append(bert_cross_validation_iteration(1))
 
+    # after cross validation iterations are executed calculated final result from them
     # for i in range(1, 12):
     #     accuracies.append(read_history(i))
 
@@ -1253,11 +1264,14 @@ def main():
 
     report_final = print_report(final_accuracy)
 
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
     # specific_history, overall_accuracy, report = internal_report(y_true, y_pred, digits=4)
     output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
 
     logger.info("***** Eval results *****")
     logger.info("\n%s", report_final)
+
 
     with open(output_eval_file, "w") as writer:
         writer.write(report_final)

@@ -1180,7 +1180,6 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
         for feat in others_map:
             self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
 
-        print(len(self.other_embeddings))
         self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings), config.hidden_size)
         self.combined_layer_2 = nn.Linear(config.hidden_size, config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
