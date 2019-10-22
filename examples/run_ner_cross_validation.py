@@ -1,3 +1,20 @@
+# coding=utf-8
+# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
+# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+# Modifications copyright (C) 2019 Embeddia project.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import absolute_import, division, print_function
 
 # --data_dir="/media/luka/Portable Disk/Datasets/named_entity_recognition/train_test/" --bert_model=bert-base-multilingual-cased --task_name=nersl --output_dir=out_slovene_multilingual --max_seq_length=128 --do_train --num_train_epochs 5 --do_eval --warmup_proportion=0.4
@@ -448,7 +465,7 @@ def readfile_embeddia(filename, cv_part):
 class DataProcessor(object):
     """Base class for data converters for sequence classification data sets."""
 
-    def get_train_examples(self, data_dir, cv_part):
+    def get_train_examples(self, data_dir, cv_part, partial_train_data_usage=1.0):
         """Gets a collection of `InputExample`s for the train set."""
         raise NotImplementedError()
 
@@ -469,10 +486,20 @@ class DataProcessor(object):
 class NerEmbeddiaProcessor(DataProcessor):
     """Processor for the formatted embeddia data sets."""
 
-    def get_train_examples(self, data_dir, cv_part):
+    def get_train_examples(self, data_dir, cv_part, partial_train_data_usage=1.0):
         """See base class."""
+        # always ignore cv_part. In order to get same amount of ~same amount of data when learning if cv_part <= data_
+        # used_parts add 1 part to train data
+        data_used_parts = int(11 * partial_train_data_usage)
+        if data_used_parts == 11:
+            num_train_parts = 11
+        else:
+            if cv_part <= data_used_parts:
+                num_train_parts = data_used_parts + 1
+            else:
+                num_train_parts = data_used_parts
         data = []
-        for i in range(1, 11):
+        for i in range(1, num_train_parts + 1):
             if i != cv_part:
                 data.extend(readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), i))
         return self._create_examples(
@@ -555,10 +582,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 label_1 = labellist[i]
                 if other['upos']:
                     upos = otherlist[i]['upos']
+                if other['feats']:
                     feats = otherlist[i]['feats']
             for m in range(len(token)):
                 if other['upos']:
                     others['upos'].append(upos)
+                if other['feats']:
                     others['feats'].append(feats)
                 if m == 0:
                     labels.append(label_1)
@@ -589,7 +618,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
             if other['upos']:
                 this_feat_dict = {}
-                if others['feats'][i] != '_':
+                if other['feats'] and others['feats'][i] != '_':
                     word_feats = others['feats'][i].split('|')
                     for feat in word_feats:
                         feat_split = feat.split('=')
@@ -678,7 +707,7 @@ def read_ud_translations(path):
 
 
 def main():
-    def bert_cross_validation_iteration(cross_validation_part):
+    def bert_cross_validation_iteration(cross_validation_part, partial_train_data_usage):
         if args.server_ip and args.server_port:
             # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
             import ptvsd
@@ -736,7 +765,8 @@ def main():
         train_examples = None
         num_train_optimization_steps = None
         if args.do_train:
-            train_examples = processor.get_train_examples(args.data_dir, cross_validation_part)
+            train_examples = processor.get_train_examples(args.data_dir, cross_validation_part, partial_train_data_usage)
+            eval_examples = processor.get_dev_examples(args.data_dir, cross_validation_part)
             num_train_optimization_steps = int(
                 len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
             if args.local_rank != -1:
@@ -969,15 +999,18 @@ def main():
 
             # Load a trained model and config that you have fine-tuned
         else:
-            output_config_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, CONFIG_NAME)
-            output_model_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, WEIGHTS_NAME)
-            config = BertConfig(output_config_file)
-            if args.upos:
-                model = BertForTokenClassificationUdExpanded(config, num_labels=num_labels,
-                                                             num_ud_dependencies=num_ud_dependencies)
-            else:
-                model = BertForTokenClassification(config, num_labels=num_labels)
-            model.load_state_dict(torch.load(output_model_file))
+            pass
+            # output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+            # output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+            # output_config_file = os.path.join(args.data_dir, CONFIG_NAME)
+            # output_model_file = os.path.join(args.data_dir, WEIGHTS_NAME)
+            # config = BertConfig(output_config_file)
+            # if args.use_ud:
+            #     model = BertForTokenClassificationUdExpanded(config, num_labels=num_labels,
+            #                                                    num_ud_dependencies=num_ud_dependencies)
+            # else:
+            #     model = BertForTokenClassification(config, num_labels=num_labels)
+            # model.load_state_dict(torch.load(output_model_file))
 
         model.to(device)
 
@@ -1047,6 +1080,10 @@ def main():
                                 # print(j)
                                 # print(label_map[label_ids[i][j]])
                                 # print(label_map[logits[i][j]])
+                                # if logits[i][j] == 0:
+                                #     temp_2.append(label_map[1])
+                                # else:
+                                #     temp_2.append(label_map[logits[i][j]])
                                 temp_2.append(label_map[logits[i][j]])
                         else:
                             temp_1.pop()
@@ -1119,6 +1156,10 @@ def main():
     parser.add_argument("--do_eval_in_training",
                         action='store_true',
                         help="Whether to do evaluation after each epoch during training.")
+    parser.add_argument("--train_data_usage",
+                        default=1.0,
+                        type=float,
+                        help="% of data used for training.")
     parser.add_argument("--do_eval",
                         action='store_true',
                         help="Whether to run eval on the dev set.")
@@ -1234,11 +1275,11 @@ def main():
         return mydict
 
     # actually executing code
-    # for i in range(1, 12):
-    #     accuracies.append(bert_cross_validation_iteration(i))
+    for i in range(1, 12):
+        accuracies.append(bert_cross_validation_iteration(i, args.train_data_usage))
 
     # testing on one part of cross validation
-    accuracies.append(bert_cross_validation_iteration(1))
+    # accuracies.append(bert_cross_validation_iteration(1))
 
     # after cross validation iterations are executed calculated final result from them
     # for i in range(1, 12):

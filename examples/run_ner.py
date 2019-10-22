@@ -1,3 +1,20 @@
+# coding=utf-8
+# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
+# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+# Modifications copyright (C) 2019 Embeddia project.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import absolute_import, division, print_function
 
 # --data_dir="/media/luka/Portable Disk/Datasets/named_entity_recognition/train_test/" --bert_model=bert-base-multilingual-cased --task_name=nersl --output_dir=out_slovene_multilingual --max_seq_length=128 --do_train --num_train_epochs 5 --do_eval --warmup_proportion=0.4
@@ -161,15 +178,40 @@ def readfile_embeddia(filename, ud_translation):
     [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
     '''
 
-    df = pd.read_csv(filename, sep='\t')
+    a = [x for x in os.walk(filename)]
+    df = pd.DataFrame()
+    names = next(os.walk(filename))
+    for name in names[1]:
+        if name != 'SLO':
+            df_filename = os.path.join(filename, name, 'one_file/input_msd.tsv')
+            if df.empty:
+                df = pd.read_csv(df_filename, sep='\t')
+            else:
+                # df = df.merge(pd.read_csv(df_filename, sep='\t'))
+                new_df = pd.read_csv(df_filename, sep='\t')
+                test = df.loc[df.index[-1], 'sentence_id']
+                new_df['sentence_id'] = new_df['sentence_id'] + df.loc[df.index[-1], 'sentence_id']
+                df = pd.concat([df, new_df])
+                df = df.reset_index(drop=True)
+
+
+    # groups = [df for _, df in df.groupby('sentence_id')]
+    # random.shuffle(groups)
+    # df = pd.concat(groups).reset_index(drop=True)
+
+    # df = pd.read_csv(filename, sep='\t')
     # first_sentence_i = df['sentence_id']
     first_sentence_i = df['sentence_id'][0]
     # last_sentence_i = df['sentence_id'].tail(1)
     last_sentence_i = df['sentence_id'].tail(1).iloc[0]
 
+    sentence_order = list(range(first_sentence_i, last_sentence_i + 1))
+    random.shuffle(sentence_order)
+
     output = []
 
-    for i in range(first_sentence_i, last_sentence_i):
+    # for i in range(first_sentence_i, last_sentence_i):
+    for i in sentence_order:
         df_sentence = df.loc[df['sentence_id'] == i]
         sentence = []
         labels = []
@@ -180,8 +222,8 @@ def readfile_embeddia(filename, ud_translation):
             sentence.append(data['word'])
             if data['word'] == '"':
                 continue
-            if 'msd' in data:
-                ud.append(data['msd'])
+            # if 'msd' in data:
+            #     ud.append(data['msd'])
             # if data['label'] == float('nan'):
             if not isinstance(data['label'], str) and math.isnan(data['label']):
                 labels.append('O')
@@ -219,17 +261,17 @@ class NerEmbeddiaProcessor(DataProcessor):
     def get_train_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            readfile_embeddia(os.path.join(data_dir, "train_msd.tsv"), ud_translation), "train")
+            readfile_embeddia(data_dir, ud_translation), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            readfile_embeddia(os.path.join(data_dir, "test_msd.tsv"), ud_translation), "dev")
+            readfile_embeddia(data_dir, ud_translation), "dev")
 
     def get_test_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            readfile_embeddia(os.path.join(data_dir, "test_msd.tsv"), ud_translation), "test")
+            readfile_embeddia(data_dir, ud_translation), "test")
 
     def get_labels(self):
         # return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
