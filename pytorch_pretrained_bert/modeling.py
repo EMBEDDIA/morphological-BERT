@@ -1,6 +1,7 @@
 # coding=utf-8
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+# Modifications copyright (C) 2019 Embeddia project.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,7 +80,7 @@ def load_tf_weights_in_bert(model, tf_checkpoint_path):
         name = name.split('/')
         # adam_v and adam_m are variables used in AdamWeightDecayOptimizer to calculated m and v
         # which are not required for using pretrained model
-        if any(n in ["adam_v", "adam_m"] for n in name):
+        if any(n in ["adam_v", "adam_m", "global_step"] for n in name):
             print("Skipping {}".format("/".join(name)))
             continue
         pointer = model
@@ -1169,7 +1170,7 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_labels, upos_num, others_map):
+    def __init__(self, config, num_labels, upos_num, prefix_num, suffix_num, others_map):
         super(BertForTokenClassificationUdExpanded, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
@@ -1180,16 +1181,23 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
         for feat in others_map:
             self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
 
-        self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings), config.hidden_size)
+        if prefix_num > 1:
+            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings) + 60, config.hidden_size)
+        else:
+            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings),
+                                              config.hidden_size)
         self.combined_layer_2 = nn.Linear(config.hidden_size, config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         # self.num_ud_dependencies = num_ud_dependencies
         self.ud_embeddings = nn.Embedding(upos_num, 10)
+        if prefix_num > 1:
+            self.prefix_embeddings = nn.Embedding(prefix_num, 10)
+            self.suffix_embeddings = nn.Embedding(suffix_num, 50)
 
 
         # self.other_embeddings = tuple(self.other_embeddings)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, other_ids=None, use_ud=False):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, other_ids=None, prefix_ids=None, suffix_ids=None, use_ud=False, use_fixes=False):
         # if not ud_ids:
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         # else:
@@ -1219,7 +1227,12 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
             # for emb in self.other_embeddings:
             #     a = emb(other_ids[0])
             # other_embeddings = self.other_embeddings[0](other_ids[0])
-            concatenated_tensor = torch.cat((sequence_output, *other_embeddings), 2)
+            if use_fixes:
+                prefix_embeddings = self.prefix_embeddings(prefix_ids)
+                suffix_embeddings = self.suffix_embeddings(suffix_ids)
+                concatenated_tensor = torch.cat((sequence_output, prefix_embeddings, suffix_embeddings, *other_embeddings), 2)
+            else:
+                concatenated_tensor = torch.cat((sequence_output, *other_embeddings), 2)
             sequence_output = self.combined_layer_1(concatenated_tensor)
             sequence_output = self.dropout(sequence_output)
             sequence_output = self.combined_layer_2(sequence_output)

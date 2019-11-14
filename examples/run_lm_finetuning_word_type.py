@@ -1,6 +1,7 @@
 # coding=utf-8
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+# Modifications copyright (C) 2019 Embeddia project.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -167,10 +168,6 @@ class BERTDataset(Dataset):
                 if token[:2] == '##':
                     add_len -= 2
                 token_len += add_len
-                a = t[:2]
-                if word_type_index >= len(t.split()):
-                    print('a')
-                print(t)
 
                 if token_len == len(t.split()[word_type_index]) or token == '[UNK]':
                     final_tokens_word_type.append(tokens_word_type[word_type_index][0])
@@ -180,13 +177,6 @@ class BERTDataset(Dataset):
                     final_tokens_word_type.append(tokens_word_type[word_type_index][0])
                 elif token_len > len(t.split()[word_type_index]):
                     print("ERRROR!")
-                    # print(t)
-                    # print(example.word_type)
-                    print(len(tokens))
-                    print(word_type_index)
-                    print(token)
-                    print(tokens_word_type[word_type_index])
-                    print(tokens_word_type[word_type_index][0])
 
         return final_tokens_word_type
 

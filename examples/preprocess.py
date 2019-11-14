@@ -23,7 +23,4 @@ def clean_sentences():
     dev_df.to_csv('../../comments_sentiment/data/dev_cleaned.tsv', sep='\t')
     test_df.to_csv('../../comments_sentiment/data/test_cleaned.tsv', sep='\t')
 
-    # print(test_df)
-
-
 clean_sentences()

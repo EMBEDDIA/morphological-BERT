@@ -17,9 +17,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-# --data_dir="/media/luka/Portable Disk/Datasets/named_entity_recognition/train_test/" --bert_model=bert-base-multilingual-cased --task_name=nersl --output_dir=out_slovene_multilingual --max_seq_length=128 --do_train --num_train_epochs 5 --do_eval --warmup_proportion=0.4
-# --data_dir="/media/luka/Portable Disk/Datasets/named_entity_recognition/train_test/" --bert_model=out_slovene_multilingual --task_name=nersl --output_dir=out_slovene_multilingual --max_seq_length=128 --do_eval
-
 import argparse
 import configparser
 import csv
@@ -342,12 +339,13 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id, other_ids=None):
+    def __init__(self, input_ids, input_mask, segment_ids, label_id, other_ids=None, fix_ids=None):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.label_id = label_id
         self.other_ids = other_ids
+        self.fix_ids = fix_ids
 
 
 def readfile(filename):
@@ -373,8 +371,6 @@ def readfile(filename):
 
     if len(sentence) > 0:
         data.append((sentence, label))
-        sentence = []
-        label = []
     return data
 
 
@@ -385,10 +381,8 @@ def readfilesl(filename):
     [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
     '''
 
-    df = pd.read_csv(filename, sep='\t')
-    # first_sentence_i = df['sentence_id']
+    df = pd.read_csv(filename, sep='\t', keep_default_na=False)
     first_sentence_i = df['sentence_id'][0]
-    # last_sentence_i = df['sentence_id'].tail(1)
     last_sentence_i = df['sentence_id'].tail(1).iloc[0]
 
     output = []
@@ -401,7 +395,6 @@ def readfilesl(filename):
             if isinstance(data['word'], float):
                 data['word'] = ''
             sentence.append(data['word'])
-            # if data['label'] == float('nan'):
             if not isinstance(data['label'], str) and math.isnan(data['label']):
                 labels.append('O')
             else:
@@ -418,10 +411,9 @@ def readfile_embeddia(filename, cv_part):
     [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
     '''
     filename = filename % cv_part
-    df = pd.read_csv(filename, sep='\t')
-    # first_sentence_i = df['sentence_id']
+    df = pd.read_csv(filename, sep='\t', keep_default_na=False)
+    df = df.fillna('')
     first_sentence_i = df['sentence_id'][0]
-    # last_sentence_i = df['sentence_id'].tail(1)
     last_sentence_i = df['sentence_id'].tail(1).iloc[0]
 
     output = []
@@ -450,9 +442,12 @@ def readfile_embeddia(filename, cv_part):
                 other['lemma'] = data['lemma']
             if 'dependency_relation' in data:
                 other['dependency_relation'] = data['dependency_relation']
+            if 'prefixes' in data:
+                other['prefixes'] = data['prefixes']
+            if 'suffixes' in data:
+                other['suffixes'] = data['suffixes']
 
             others.append(other)
-            # if data['label'] == float('nan'):
             if not isinstance(data['label'], str) and math.isnan(data['label']):
                 labels.append('O')
             else:
@@ -516,24 +511,21 @@ class NerEmbeddiaProcessor(DataProcessor):
             readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), cv_part), "test")
 
     def get_labels(self):
-        # return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
-        # return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", 'B-DERIV-PER', 'I-DERIV-PER', "X", "[CLS]", "[SEP]"]
         return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
 
     def get_ud_tags(self):
-        # return ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
-        # return ["O", "ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM", 'PART', 'PRON', "PROPN", "PUNCT",
-        #         "SCONJ", "SYM", "VERB", "X"]
         return ud_list
+
+    def get_prefix_tags(self):
+        return prefix_list
+
+    def get_suffix_tags(self):
+        return suffix_list
 
     def _create_examples(self, lines, set_type):
         examples = []
         for i, (sentence, label, other) in enumerate(lines):
             guid = "%s-%s" % (set_type, i)
-            # if math.isnan(sentence):
-            #     sentence = ''
-            # if i == 1081:
-            #     print(i)
             text_a = ' '.join(sentence)
             text_b = None
             label = label
@@ -561,10 +553,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             others['upos'] = []
         if other['feats']:
             others['feats'] = []
-        # print(textlist)
-        # print(labellist)
+        if other['suffixes']:
+            others['suffixes'] = []
+        if other['prefixes']:
+            others['prefixes'] = []
         parentheses_occurences = 0
         for i, word in enumerate(textlist):
+            if i >= len(labellist):
+                continue
+
             token = tokenizer.tokenize(word)
             tokens.extend(token)
 
@@ -573,22 +570,27 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 parentheses_occurences += 1
                 label_1 = 'O'
                 if other['upos']:
-                    # ud_1 = "UposTag=ADP|Case=Acc"
                     upos = "ADP"
             else:
                 i = i - parentheses_occurences
-                if i >= len(labellist):
-                    print('ERROR')
                 label_1 = labellist[i]
                 if other['upos']:
                     upos = otherlist[i]['upos']
                 if other['feats']:
                     feats = otherlist[i]['feats']
+                if other['prefixes']:
+                    prefixes = otherlist[i]['prefixes']
+                if other['suffixes']:
+                    suffixes = otherlist[i]['suffixes']
             for m in range(len(token)):
                 if other['upos']:
                     others['upos'].append(upos)
                 if other['feats']:
                     others['feats'].append(feats)
+                if other['prefixes']:
+                    others['prefixes'].append(prefixes)
+                if other['suffixes']:
+                    others['suffixes'].append(suffixes)
                 if m == 0:
                     labels.append(label_1)
                 else:
@@ -601,16 +603,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_ids = []
         # create array of arrays of universal_feature_map and upos
         if other['upos']:
-            # ud_ids = []
             # for beginning tag use 0 - for separators
             other_ids = [[0] for i in range(len(universal_features_map) + 1)]
+
+        if other['prefixes']:
+            fix_ids = [[0], [0]]
         ntokens.append("[CLS]")
         segment_ids.append(0)
         label_ids.append(label_map["[CLS]"])
 
-        # if other['upos']:
-        #     ud_ids.append(0)
-        # ud_ids = None
         for i, token in enumerate(tokens):
             ntokens.append(token)
             segment_ids.append(0)
@@ -624,30 +625,29 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                         feat_split = feat.split('=')
                         this_feat_dict[feat_split[0]] = feat_split[1]
                 upos_append = others['upos'][i]
-                # if len(split) > 1:
-                #     ud_ids.append(ud_map[upos_append])
-                # else:
                 other_ids[0].append(ud_map[upos_append])
                 # add 0 if no feature of specific type is given or correct index of feature if it is given
-                # a = universal_features_map
                 for index, key in enumerate(universal_features_map):
                     if key in this_feat_dict and this_feat_dict[key] in universal_features_map[key]:
                         other_ids[index + 1].append(universal_features_map[key][this_feat_dict[key]])
                     else:
                         other_ids[index + 1].append(0)
-                # print(key)
 
+            if other['fixes']:
+                prefixes_append = others['prefixes'][i]
+                suffixes_append = others['suffixes'][i]
+                fix_ids[0].append(prefix_map[prefixes_append])
+                fix_ids[1].append(suffix_map[suffixes_append])
 
-
-
-                # ud_ids.append(ud_map[upos_append])
         ntokens.append("[SEP]")
         segment_ids.append(0)
         label_ids.append(label_map["[SEP]"])
         if other['upos']:
             for i in range(len(other_ids)):
                 other_ids[i].append(0)
-            # ud_ids.append(0)
+        if other['fixes']:
+            fix_ids[0].append(0)
+            fix_ids[1].append(0)
         input_ids = tokenizer.convert_tokens_to_ids(ntokens)
 
         input_mask = [1] * len(input_ids)
@@ -659,12 +659,17 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             if other['upos']:
                 for i in range(len(other_ids)):
                     other_ids[i].append(0)
+            if other['fixes']:
+                fix_ids[0].append(0)
+                fix_ids[1].append(0)
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
         if other['upos']:
             assert len(other_ids[0]) == max_seq_length
+        if other['fixes']:
+            assert len(fix_ids[0]) == max_seq_length
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -675,18 +680,22 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             if other['upos']:
                 logger.info("ud_ids: %s" % " ".join([str(x) for x in other_ids[0]]))
+            if other['fixes']:
+                logger.info("fix_ids: %s" % " ".join([str(x) for x in fix_ids[0]]))
             logger.info(
                 "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            # logger.info("label: %s (id = %d)" % (example.label, label_ids))
 
 
         if other['upos']:
+            if not other['fixes']:
+                fix_ids = None
             features.append(
                 InputFeatures(input_ids=input_ids,
                               input_mask=input_mask,
                               segment_ids=segment_ids,
                               label_id=label_ids,
-                              other_ids=other_ids))
+                              other_ids=other_ids,
+                              fix_ids=fix_ids))
         else:
             features.append(
                 InputFeatures(input_ids=input_ids,
@@ -699,13 +708,17 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
 def read_ud_translations(path):
     ud_translation = {}
-    df = pd.read_csv(path, sep='\t')
+    df = pd.read_csv(path, sep='\t', keep_default_na=False)
     for index, row in df.iterrows():
         ud_translation[row['msd']] = [row['word_type'], row['ud']]
 
     return ud_translation
 
-
+prefix_map = {}
+suffix_map = {}
+prefix_list = []
+suffix_list = []
+test = ['a']
 def main():
     def bert_cross_validation_iteration(cross_validation_part, partial_train_data_usage):
         if args.server_ip and args.server_port:
@@ -714,8 +727,6 @@ def main():
             print("Waiting for debugger attach")
             ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
             ptvsd.wait_for_attach()
-
-        # ud_translation = read_ud_translations(os.path.join(args.data_dir, 'sl_multext-ud'))
 
         processors = {"nerembeddia": NerEmbeddiaProcessor}
 
@@ -757,8 +768,12 @@ def main():
         processor = processors[task_name]()
         label_list = processor.get_labels()
         ud_tags_list = processor.get_ud_tags()
+        prefix_tags_list = processor.get_prefix_tags()
+        suffix_tags_list = processor.get_suffix_tags()
         num_labels = len(label_list) + 1
         num_ud_dependencies = len(ud_tags_list) + 1
+        num_prefixes = len(prefix_tags_list) + 1
+        num_suffixes = len(suffix_tags_list) + 1
 
         tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
 
@@ -766,7 +781,6 @@ def main():
         num_train_optimization_steps = None
         if args.do_train:
             train_examples = processor.get_train_examples(args.data_dir, cross_validation_part, partial_train_data_usage)
-            eval_examples = processor.get_dev_examples(args.data_dir, cross_validation_part)
             num_train_optimization_steps = int(
                 len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
             if args.local_rank != -1:
@@ -780,6 +794,8 @@ def main():
                                                                          cache_dir=cache_dir,
                                                                          num_labels=num_labels,
                                                                          upos_num=num_ud_dependencies,
+                                                                         prefix_num=num_prefixes,
+                                                                         suffix_num=num_suffixes,
                                                                          others_map=universal_features_map)
         else:
             model = BertForTokenClassification.from_pretrained(args.bert_model,
@@ -829,8 +845,6 @@ def main():
                                  t_total=num_train_optimization_steps)
 
         global_step = 0
-        nb_tr_steps = 0
-        tr_loss = 0
         if args.do_train:
             train_features = convert_examples_to_features(
                 train_examples, label_list, args.max_seq_length, tokenizer, other=other_features)
@@ -842,13 +856,17 @@ def main():
             all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
             all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
             all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
-            # all_feats_ids =
             if args.upos:
+
                 all_other_ids = [torch.tensor([f.other_ids[other_i] for f in train_features], dtype=torch.long) for other_i in range(len(train_features[0].other_ids))]
-                # all_ud_ids = torch.tensor([f.ud_ids for f in train_features], dtype=torch.long)
-            # if args.upos:
-                train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, *all_other_ids)
-            #     train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
+                if args.fixes:
+                    all_prefixes_ids = torch.tensor([f.fix_ids[0] for f in train_features], dtype=torch.long)
+                    all_suffixes_ids = torch.tensor([f.fix_ids[1] for f in train_features], dtype=torch.long)
+                    train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_prefixes_ids, all_suffixes_ids,
+                                               *all_other_ids)
+                else:
+                    train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, *all_other_ids)
             else:
                 train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
             if args.local_rank == -1:
@@ -869,13 +887,17 @@ def main():
                 for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                     batch = tuple(t.to(device) for t in batch)
                     if args.upos:
-                        input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
-                        loss = model(input_ids, segment_ids, input_mask, label_ids, other_ids, use_ud=args.upos)
+                        if args.fixes:
+                            input_ids, input_mask, segment_ids, label_ids, prefix_ids, suffix_ids, *other_ids = batch
+                        else:
+                            input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                            prefix_ids = None
+                            suffix_ids = None
+                        loss = model(input_ids, segment_ids, input_mask, label_ids, other_ids, prefix_ids, suffix_ids, use_ud=args.upos, use_fixes=args.fixes)
                     else:
                         input_ids, input_mask, segment_ids, label_ids = batch
                         ud_ids = None
                         loss = model(input_ids, segment_ids, input_mask, label_ids)
-                    # loss = model(input_ids, segment_ids, input_mask, label_ids)
 
                     if n_gpu > 1:
                         loss = loss.mean()  # mean() to average on multi-gpu.
@@ -918,8 +940,15 @@ def main():
                     if args.upos:
                         all_other_ids = [torch.tensor([f.other_ids[other_i] for f in eval_features], dtype=torch.long)
                                          for other_i in range(len(eval_features[0].other_ids))]
-                        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
-                                                  *all_other_ids)
+                        if args.fixes:
+                            all_prefixes_ids = torch.tensor([f.fix_ids[0] for f in eval_features], dtype=torch.long)
+                            all_suffixes_ids = torch.tensor([f.fix_ids[1] for f in eval_features], dtype=torch.long)
+                            eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
+                                                       all_prefixes_ids, all_suffixes_ids,
+                                                       *all_other_ids)
+                        else:
+                            eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
+                                                      *all_other_ids)
                     else:
                         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
@@ -927,14 +956,17 @@ def main():
                     eval_sampler = SequentialSampler(eval_data)
                     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
                     model.eval()
-                    eval_loss, eval_accuracy = 0, 0
-                    nb_eval_steps, nb_eval_examples = 0, 0
                     y_true = []
                     y_pred = []
                     label_map = {i: label for i, label in enumerate(label_list, 1)}
                     for batch in tqdm(eval_dataloader, desc="Evaluating"):
                         if args.upos:
-                            input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                            if args.fixes:
+                                input_ids, input_mask, segment_ids, label_ids, prefix_ids, suffix_ids, *other_ids = batch
+                            else:
+                                input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                                prefix_ids = None
+                                suffix_ids = None
                         else:
                             input_ids, input_mask, segment_ids, label_ids = batch
 
@@ -948,9 +980,17 @@ def main():
                                 new_other_ids.append(other_id.to(device))
                             other_ids = new_other_ids
 
+                        if args.fixes:
+                            prefix_ids = prefix_ids.to(device)
+                            suffix_ids = suffix_ids.to(device)
+
                         with torch.no_grad():
                             if args.upos:
-                                logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, use_ud=True)
+                                if args.fixes:
+                                    logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, prefix_ids=prefix_ids, suffix_ids=suffix_ids, use_ud=args.upos, use_fixes=args.fixes)
+                                else:
+                                    logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, prefix_ids=None, suffix_ids=None
+                                                   , use_ud=args.upos, use_fixes=args.fixes)
                             else:
                                 logits = model(input_ids, segment_ids, input_mask)
 
@@ -995,23 +1035,6 @@ def main():
                             "label_map": label_map}
             json.dump(model_config, open(os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, "model_config.json"), "w"))
 
-            # writer.write(report)
-
-            # Load a trained model and config that you have fine-tuned
-        else:
-            pass
-            # output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
-            # output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-            # output_config_file = os.path.join(args.data_dir, CONFIG_NAME)
-            # output_model_file = os.path.join(args.data_dir, WEIGHTS_NAME)
-            # config = BertConfig(output_config_file)
-            # if args.use_ud:
-            #     model = BertForTokenClassificationUdExpanded(config, num_labels=num_labels,
-            #                                                    num_ud_dependencies=num_ud_dependencies)
-            # else:
-            #     model = BertForTokenClassification(config, num_labels=num_labels)
-            # model.load_state_dict(torch.load(output_model_file))
-
         model.to(device)
 
         if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -1028,22 +1051,33 @@ def main():
             if args.upos:
                 all_other_ids = [torch.tensor([f.other_ids[other_i] for f in eval_features], dtype=torch.long)
                                  for other_i in range(len(eval_features[0].other_ids))]
-                eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
-                                          *all_other_ids)
+
+                if args.fixes:
+                    all_prefixes_ids = torch.tensor([f.fix_ids[0] for f in eval_features], dtype=torch.long)
+                    all_suffixes_ids = torch.tensor([f.fix_ids[1] for f in eval_features], dtype=torch.long)
+                    eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
+                                              all_prefixes_ids, all_suffixes_ids,
+                                              *all_other_ids)
+                else:
+                    eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
+                                              *all_other_ids)
             else:
                 eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
             # Run prediction for full data
             eval_sampler = SequentialSampler(eval_data)
             eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
             model.eval()
-            eval_loss, eval_accuracy = 0, 0
-            nb_eval_steps, nb_eval_examples = 0, 0
             y_true = []
             y_pred = []
             label_map = {i: label for i, label in enumerate(label_list, 1)}
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 if args.upos:
-                    input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                    if args.fixes:
+                        input_ids, input_mask, segment_ids, label_ids, prefix_ids, suffix_ids, *other_ids = batch
+                    else:
+                        input_ids, input_mask, segment_ids, label_ids, *other_ids = batch
+                        prefix_ids = None
+                        suffix_ids = None
                 else:
                     input_ids, input_mask, segment_ids, label_ids = batch
 
@@ -1057,9 +1091,19 @@ def main():
                         new_other_ids.append(other_id.to(device))
                     other_ids = new_other_ids
 
+                if args.fixes:
+                    prefix_ids = prefix_ids.to(device)
+                    suffix_ids = suffix_ids.to(device)
+
                 with torch.no_grad():
                     if args.upos:
-                        logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, use_ud=True)
+                        if args.fixes:
+                            logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids,
+                                           prefix_ids=prefix_ids, suffix_ids=suffix_ids, use_ud=args.upos,
+                                           use_fixes=args.fixes)
+                        else:
+                            logits = model(input_ids, segment_ids, input_mask, other_ids=other_ids, prefix_ids=None,
+                                           suffix_ids=None, use_ud=args.upos, use_fixes=args.fixes)
                     else:
                         logits = model(input_ids, segment_ids, input_mask)
 
@@ -1076,14 +1120,6 @@ def main():
                         if m:
                             if label_map[label_ids[i][j]] != "X":
                                 temp_1.append(label_map[label_ids[i][j]])
-                                # print(i)
-                                # print(j)
-                                # print(label_map[label_ids[i][j]])
-                                # print(label_map[logits[i][j]])
-                                # if logits[i][j] == 0:
-                                #     temp_2.append(label_map[1])
-                                # else:
-                                #     temp_2.append(label_map[logits[i][j]])
                                 temp_2.append(label_map[logits[i][j]])
                         else:
                             temp_1.pop()
@@ -1092,7 +1128,6 @@ def main():
                             y_pred.append(temp_2)
                             break
             report = classification_report(y_true, y_pred, digits=4)
-            # specific_history, overall_accuracy, report = internal_report(y_true, y_pred, digits=4)
             output_eval_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, "eval_results.txt")
 
             # find errors:
@@ -1115,7 +1150,6 @@ def main():
 
             return mydict
         return None
-
     parser = argparse.ArgumentParser()
 
     ## Required parameters
@@ -1166,9 +1200,6 @@ def main():
     parser.add_argument("--do_lower_case",
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
-    parser.add_argument("--use_ud",
-                        action='store_true',
-                        help="Set this flag if you want to use uds as inputs as well.")
     parser.add_argument("--train_batch_size",
                         default=32,
                         type=int,
@@ -1222,19 +1253,72 @@ def main():
 
     args.upos = config.getboolean('settings', 'upos')
     args.feats = config.getboolean('settings', 'feats')
+    args.fixes = config.getboolean('settings', 'fixes')
+    args.fixes_path = config.get('settings', 'fixes_path')
 
     other_features = {
         'upos': config.getboolean('settings', 'upos'),
         'feats': config.getboolean('settings', 'feats'),
         'xpos': config.getboolean('settings', 'xpos'),
         'lemma': config.getboolean('settings', 'lemma'),
-        'dependency_relation': config.getboolean('settings', 'dependency_relation')
+        'dependency_relation': config.getboolean('settings', 'dependency_relation'),
+        'fixes': config.getboolean('settings', 'fixes'),
+        'prefixes': config.getboolean('settings', 'fixes'),
+        'suffixes': config.getboolean('settings', 'fixes'),
     }
+
+    if args.fixes:
+        # with open() as fh:
+        # all_prefixes = []
+        global prefix_map
+        global suffix_map
+        global prefix_list
+        global suffix_list
+        max_prefix_len = 0
+        with open(os.path.join(args.fixes_path, 'prefixes.csv'), 'r') as csvFile:
+            reader = csv.reader(csvFile)
+            first_el = True
+            for row in reader:
+                # erase predponsko
+                if first_el:
+                    first_el = False
+                    continue
+                # erase prefixes with length smaller than 2 characters
+                if len(row[0]) > 2:
+                    # add new prefix and erase _
+                    prefix_list.append(row[0][:-1])
+
+                # find longest prefix
+                if len(row[0]) - 1 > max_prefix_len:
+                    max_prefix_len = len(row[0]) - 1
+
+        prefix_list = [''] + prefix_list
+
+        max_suffix_len = 0
+        with open(os.path.join(args.fixes_path, 'suffixes.csv'), 'r') as csvFile:
+            reader = csv.reader(csvFile)
+            first_el = True
+            for row in reader:
+                # erase priponsko
+                if first_el:
+                    first_el = False
+                    continue
+
+                # erase suffixes with length smaller than 2 characters
+                if len(row[0]) > 2:
+                    # add new suffix and erase _
+                    suffix_list.append(row[0][1:])
+
+                if len(row[0]) - 1 > max_suffix_len:
+                    max_suffix_len = len(row[0]) - 1
+
+        suffix_list = [''] + suffix_list
+
+        prefix_map = {val: i for i, val in enumerate(prefix_list)}
+        suffix_map = {val: i for i, val in enumerate(suffix_list)}
 
     def print_report(accuracies, digits=4):
         name_width = 11
-
-        # name_width = max(name_width, len(e[0]))
 
         last_line_heading = 'avg / total'
         width = max(name_width, len(last_line_heading))
@@ -1248,31 +1332,10 @@ def main():
 
         for k, v in accuracies.items():
             report += row_fmt.format(*[k, v[0], v[1], v[2], v[3]], width=width, digits=digits)
-
-            # ps.append(p)
-            # rs.append(r)
-            # f1s.append(f1)
-            # s.append(nb_true)
-
         report += u'\n'
         return report
-        # compute averages
-        # report += row_fmt.format(last_line_heading,
-        #                          np.average(ps, weights=s),
-        #                          np.average(rs, weights=s),
-        #                          np.average(f1s, weights=s),
-        #                          np.sum(s),
-        #                          width=width, digits=digits)
 
     accuracies = []
-
-
-
-    def read_history(cross_validation_part):
-        results_history_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, "results_history.pkl")
-        with open(results_history_file, "rb") as reader:
-            mydict = pickle.load(reader)
-        return mydict
 
     # actually executing code
     for i in range(1, 12):
@@ -1280,10 +1343,6 @@ def main():
 
     # testing on one part of cross validation
     # accuracies.append(bert_cross_validation_iteration(1))
-
-    # after cross validation iterations are executed calculated final result from them
-    # for i in range(1, 12):
-    #     accuracies.append(read_history(i))
 
     accuracies_sum = {att:[0, 0, 0, 0] for att in accuracies[0]['specific_history'][0]}
     accuracies_sum['avg / total'] = [0, 0, 0, 0]
@@ -1307,7 +1366,6 @@ def main():
 
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
-    # specific_history, overall_accuracy, report = internal_report(y_true, y_pred, digits=4)
     output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
 
     logger.info("***** Eval results *****")
@@ -1317,8 +1375,5 @@ def main():
     with open(output_eval_file, "w") as writer:
         writer.write(report_final)
 
-# "/media/luka/Portable Disk/Datasets/named_entity_recognition/ENG/train_test/eval_pos"
 if __name__ == "__main__":
     main()
-
-# --do_train --num_train_epochs 5 --do_eval_in_training

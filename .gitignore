@@ -126,3 +126,11 @@ models
 models2
 *.bin
 *.pkl
+/comment?sentiment/
+/examples/out/
+/examples/out_2/
+/examples/out_english_multilingual/
+/examples/out_slovene/
+/examples/out_slovene_multilingual/
+/models/
+/models2/
