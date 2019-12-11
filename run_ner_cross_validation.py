@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from seqeval.metrics.sequence_labeling import internal_report
+# from seqeval.metrics.sequence_labeling import internal_report
 from torch import nn
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -1025,9 +1025,9 @@ def main():
                                     y_true.append(temp_1)
                                     y_pred.append(temp_2)
                                     break
-                    specific_history, overall_accuracy, report = internal_report(y_true, y_pred, digits=4)
-                    epochs_specific.append(specific_history)
-                    epochs_overall.append(overall_accuracy)
+                    report = classification_report(y_true, y_pred, digits=4)
+                    # epochs_specific.append(specific_history)
+                    # epochs_overall.append(overall_accuracy)
                     output_eval_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, "eval_results.txt")
                     with open(output_eval_file, "w") as writer:
                         logger.info("***** Eval results *****")
