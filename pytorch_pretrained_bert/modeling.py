@@ -1106,7 +1106,7 @@ class BertForTokenClassification(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, ud_ids=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, ud_ids=ud_ids, output_all_encoded_layers=False)
+        sequence_output, a = self.bert(input_ids, token_type_ids, attention_mask, ud_ids=ud_ids, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
 
@@ -1186,47 +1186,19 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
         else:
             self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings),
                                               config.hidden_size)
-        self.combined_layer_2 = nn.Linear(config.hidden_size, config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
-        # self.num_ud_dependencies = num_ud_dependencies
         self.ud_embeddings = nn.Embedding(upos_num, 10)
         if prefix_num > 1:
             self.prefix_embeddings = nn.Embedding(prefix_num, 10)
             self.suffix_embeddings = nn.Embedding(suffix_num, 50)
 
-
-        # self.other_embeddings = tuple(self.other_embeddings)
-
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, other_ids=None, prefix_ids=None, suffix_ids=None, use_ud=False, use_fixes=False):
-        # if not ud_ids:
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        # else:
-        #     sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, ud_ids=ud_ids,
-        #                                    output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         if use_ud:
-            # labels = torch.LongTensor(4, 4) % 3
-            # print(ud_ids.size())
-            # # one_hot = torch.cuda.FloatTensor(ud_ids.size(0), self.num_ud_dependencies, ud_ids.size(2), ud_ids.size(3)).zero_()
-            # print(labels.size)
-            # print(labels.size(0))
-            # print(labels.size(1))
-            # print(labels.size(2))
-            # print(labels.size(3))
-            # one_hot = torch.cuda.FloatTensor(labels.size(0), 2, labels.size(2), labels.size(3)).zero_()
-            # target = one_hot.scatter_(1, labels.data, 1)
-
-
-            # target = Variable(target)
             other_embeddings = []
             for i in range(len(self.other_embeddings)):
                 other_embeddings.append(self.other_embeddings[i](other_ids[i]))
-
-            # other_embeddings = self.ud_embeddings(other_ids[0])
-            # other_embeddings = self.TEST[0](other_ids[0])
-            # for emb in self.other_embeddings:
-            #     a = emb(other_ids[0])
-            # other_embeddings = self.other_embeddings[0](other_ids[0])
             if use_fixes:
                 prefix_embeddings = self.prefix_embeddings(prefix_ids)
                 suffix_embeddings = self.suffix_embeddings(suffix_ids)
@@ -1235,9 +1207,6 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
                 concatenated_tensor = torch.cat((sequence_output, *other_embeddings), 2)
             sequence_output = self.combined_layer_1(concatenated_tensor)
             sequence_output = self.dropout(sequence_output)
-            sequence_output = self.combined_layer_2(sequence_output)
-            sequence_output = self.dropout(sequence_output)
-            # print('here')
 
         logits = self.classifier(sequence_output)
 

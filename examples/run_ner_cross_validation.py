@@ -410,7 +410,8 @@ def readfile_embeddia(filename, cv_part):
     return format :
     [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
     '''
-    filename = filename % cv_part
+    if cv_part != -1:
+        filename = filename % cv_part
     df = pd.read_csv(filename, sep='\t', keep_default_na=False)
     df = df.fillna('')
     first_sentence_i = df['sentence_id'][0]
@@ -483,32 +484,42 @@ class NerEmbeddiaProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir, cv_part, partial_train_data_usage=1.0):
         """See base class."""
-        # always ignore cv_part. In order to get same amount of ~same amount of data when learning if cv_part <= data_
-        # used_parts add 1 part to train data
-        data_used_parts = int(11 * partial_train_data_usage)
-        if data_used_parts == 11:
-            num_train_parts = 11
+
+        if cv_part == -1:
+            data = readfile_embeddia(os.path.join(data_dir, "train_msd.tsv"), -1)
         else:
-            if cv_part <= data_used_parts:
-                num_train_parts = data_used_parts + 1
+            # always ignore cv_part. In order to get same amount of ~same amount of data when learning if cv_part <= data_
+            # used_parts add 1 part to train data
+            data_used_parts = int(10 * partial_train_data_usage)
+            if data_used_parts == 10:
+                num_train_parts = 10
             else:
-                num_train_parts = data_used_parts
-        data = []
-        for i in range(1, num_train_parts + 1):
-            if i != cv_part:
-                data.extend(readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), i))
+                if cv_part <= data_used_parts:
+                    num_train_parts = data_used_parts + 1
+                else:
+                    num_train_parts = data_used_parts
+            data = []
+            for i in range(1, num_train_parts + 1):
+                if i != cv_part:
+                    data.extend(readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), i))
         return self._create_examples(
             data, "train")
 
     def get_dev_examples(self, data_dir, cv_part):
         """See base class."""
-        return self._create_examples(
-            readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), cv_part), "dev")
+        if cv_part == -1:
+            data = readfile_embeddia(os.path.join(data_dir, "test_msd.tsv"), -1)
+        else:
+            data = readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), cv_part)
+        return self._create_examples(data, "dev")
 
     def get_test_examples(self, data_dir, cv_part):
         """See base class."""
-        return self._create_examples(
-            readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), cv_part), "test")
+        if cv_part == -1:
+            data = readfile_embeddia(os.path.join(data_dir, "test_msd.tsv"), -1)
+        else:
+            data = readfile_embeddia(os.path.join(data_dir, "ext_%d_msd.tsv"), cv_part)
+        return self._create_examples(data, "test")
 
     def get_labels(self):
         return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
@@ -671,19 +682,19 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         if other['fixes']:
             assert len(fix_ids[0]) == max_seq_length
 
-        if ex_index < 5:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            if other['upos']:
-                logger.info("ud_ids: %s" % " ".join([str(x) for x in other_ids[0]]))
-            if other['fixes']:
-                logger.info("fix_ids: %s" % " ".join([str(x) for x in fix_ids[0]]))
-            logger.info(
-                "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+        # if ex_index < 5:
+        #     logger.info("*** Example ***")
+        #     logger.info("guid: %s" % (example.guid))
+        #     logger.info("tokens: %s" % " ".join(
+        #         [str(x) for x in tokens]))
+        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        #     logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+        #     if other['upos']:
+        #         logger.info("ud_ids: %s" % " ".join([str(x) for x in other_ids[0]]))
+        #     if other['fixes']:
+        #         logger.info("fix_ids: %s" % " ".join([str(x) for x in fix_ids[0]]))
+        #     logger.info(
+        #         "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
 
 
         if other['upos']:
@@ -884,7 +895,7 @@ def main():
             for _ in trange(int(args.num_train_epochs), desc="Epoch"):
                 tr_loss = 0
                 nb_tr_examples, nb_tr_steps = 0, 0
-                for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration", disable=True)):
                     batch = tuple(t.to(device) for t in batch)
                     if args.upos:
                         if args.fixes:
@@ -959,7 +970,7 @@ def main():
                     y_true = []
                     y_pred = []
                     label_map = {i: label for i, label in enumerate(label_list, 1)}
-                    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+                    for batch in tqdm(eval_dataloader, desc="Evaluating", disable=True):
                         if args.upos:
                             if args.fixes:
                                 input_ids, input_mask, segment_ids, label_ids, prefix_ids, suffix_ids, *other_ids = batch
@@ -1070,7 +1081,7 @@ def main():
             y_true = []
             y_pred = []
             label_map = {i: label for i, label in enumerate(label_list, 1)}
-            for batch in tqdm(eval_dataloader, desc="Evaluating"):
+            for batch in tqdm(eval_dataloader, desc="Evaluating", disable=True):
                 if args.upos:
                     if args.fixes:
                         input_ids, input_mask, segment_ids, label_ids, prefix_ids, suffix_ids, *other_ids = batch
@@ -1255,6 +1266,8 @@ def main():
     args.feats = config.getboolean('settings', 'feats')
     args.fixes = config.getboolean('settings', 'fixes')
     args.fixes_path = config.get('settings', 'fixes_path')
+    args.cross_validation = config.getboolean('settings', 'cross_validation')
+    args.train_test = config.getboolean('settings', 'train_test')
 
     other_features = {
         'upos': config.getboolean('settings', 'upos'),
@@ -1338,8 +1351,13 @@ def main():
     accuracies = []
 
     # actually executing code
-    for i in range(1, 12):
-        accuracies.append(bert_cross_validation_iteration(i, args.train_data_usage))
+    if args.train_test:
+        accuracies.append(bert_cross_validation_iteration(-1, args.train_data_usage))
+    else:
+        for i in range(1, 11):
+            accuracies.append(bert_cross_validation_iteration(i, args.train_data_usage))
+            if not args.cross_validation:
+                break
 
     # testing on one part of cross validation
     # accuracies.append(bert_cross_validation_iteration(1))
