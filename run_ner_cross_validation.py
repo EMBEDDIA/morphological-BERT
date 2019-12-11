@@ -1332,9 +1332,9 @@ def main():
                 logger.info("\n%s", report)
                 writer.write(report)
             results_history_file = os.path.join(args.output_dir + '_cv_%d' % cross_validation_part, "results_history.pkl")
+            mydict = {'specific_history': specific_history, 'overall_accuracy': overall_accuracy, 'all_specific_history': epochs_specific, 'all_overall_accuracy': epochs_overall}
             if args.do_eval_in_training:
                 with open(results_history_file, "wb") as writer:
-                    mydict = {'specific_history': specific_history, 'overall_accuracy': overall_accuracy, 'all_specific_history': epochs_specific, 'all_overall_accuracy': epochs_overall}
                     output = open('myfile.pkl', 'wb')
                     pickle.dump(mydict, writer)
                     output.close()
