@@ -1,6 +1,7 @@
 # coding=utf-8
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+# Modifications copyright (C) 2019 Embeddia project.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +32,9 @@ from io import open
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
+
+from torch.autograd import Variable
+
 
 from .file_utils import cached_path
 
@@ -76,7 +80,7 @@ def load_tf_weights_in_bert(model, tf_checkpoint_path):
         name = name.split('/')
         # adam_v and adam_m are variables used in AdamWeightDecayOptimizer to calculated m and v
         # which are not required for using pretrained model
-        if any(n in ["adam_v", "adam_m"] for n in name):
+        if any(n in ["adam_v", "adam_m", "global_step"] for n in name):
             print("Skipping {}".format("/".join(name)))
             continue
         pointer = model
@@ -217,7 +221,7 @@ class BertConfig(object):
 try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
 except ImportError:
-    logger.info("Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex .")
+    logger.info("Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex.")
     class BertLayerNorm(nn.Module):
         def __init__(self, hidden_size, eps=1e-12):
             """Construct a layernorm module in the TF style (epsilon inside the square root).
@@ -238,9 +242,9 @@ class BertEmbeddings(nn.Module):
     """
     def __init__(self, config):
         super(BertEmbeddings, self).__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=0)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
-        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size, padding_idx=0)
+        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -687,7 +691,7 @@ class BertModel(BertPreTrainedModel):
         self.pooler = BertPooler(config)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, ud_ids=None):
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
         if token_type_ids is None:
@@ -1101,9 +1105,109 @@ class BertForTokenClassification(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, ud_ids=None):
+        sequence_output, a = self.bert(input_ids, token_type_ids, attention_mask, ud_ids=ud_ids, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        logits = self.classifier(sequence_output)
+
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            # Only keep active parts of the loss
+            if attention_mask is not None:
+                active_loss = attention_mask.view(-1) == 1
+                active_logits = logits.view(-1, self.num_labels)[active_loss]
+                active_labels = labels.view(-1)[active_loss]
+                loss = loss_fct(active_logits, active_labels)
+            else:
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            return loss
+        else:
+            return logits
+
+
+class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
+    """BERT model for token-level classification with UdExpanded top layers.
+    This module is composed of the BERT model concatenated with universal dependecy info on last layer, which are than
+    passed on to two other linear layers that procude classifications.
+
+    Params:
+        `config`: a BertConfig class instance with the configuration to build a new model.
+        `num_labels`: the number of classes for the classifier. Default = 2.
+
+    Inputs:
+        `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
+            with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
+            `extract_features.py`, `run_classifier.py` and `run_squad.py`)
+        `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
+            types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
+            a `sentence B` token (see BERT paper for more details).
+        `attention_mask`: an optional torch.LongTensor of shape [batch_size, sequence_length] with indices
+            selected in [0, 1]. It's a mask to be used if the input sequence length is smaller than the max
+            input sequence length in the current batch. It's the mask that we typically use for attention when
+            a batch has varying length sentences.
+        `labels`: labels for the classification output: torch.LongTensor of shape [batch_size, sequence_length]
+            with indices selected in [0, ..., num_labels].
+
+    Outputs:
+        if `labels` is not `None`:
+            Outputs the CrossEntropy classification loss of the output with the labels.
+        if `labels` is `None`:
+            Outputs the classification logits of shape [batch_size, sequence_length, num_labels].
+
+    Example usage:
+    ```python
+    # Already been converted into WordPiece token ids
+    input_ids = torch.LongTensor([[31, 51, 99], [15, 5, 0]])
+    input_mask = torch.LongTensor([[1, 1, 1], [1, 1, 0]])
+    token_type_ids = torch.LongTensor([[0, 0, 1], [0, 1, 0]])
+
+    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    num_labels = 2
+
+    model = BertForTokenClassification(config, num_labels)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_labels, upos_num, prefix_num, suffix_num, others_map):
+        super(BertForTokenClassificationUdExpanded, self).__init__(config)
+        self.num_labels = num_labels
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.apply(self.init_bert_weights)
+        self.other_embeddings = nn.ModuleList()
+        self.other_embeddings.append(nn.Embedding(upos_num, 15))
+        for feat in others_map:
+            self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
+
+        if prefix_num > 1:
+            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings) + 60, config.hidden_size)
+        else:
+            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings),
+                                              config.hidden_size)
+        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.ud_embeddings = nn.Embedding(upos_num, 10)
+        if prefix_num > 1:
+            self.prefix_embeddings = nn.Embedding(prefix_num, 10)
+            self.suffix_embeddings = nn.Embedding(suffix_num, 50)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, other_ids=None, prefix_ids=None, suffix_ids=None, use_ud=False, use_fixes=False):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
+        if use_ud:
+            other_embeddings = []
+            for i in range(len(self.other_embeddings)):
+                other_embeddings.append(self.other_embeddings[i](other_ids[i]))
+            if use_fixes:
+                prefix_embeddings = self.prefix_embeddings(prefix_ids)
+                suffix_embeddings = self.suffix_embeddings(suffix_ids)
+                concatenated_tensor = torch.cat((sequence_output, prefix_embeddings, suffix_embeddings, *other_embeddings), 2)
+            else:
+                concatenated_tensor = torch.cat((sequence_output, *other_embeddings), 2)
+            sequence_output = self.combined_layer_1(concatenated_tensor)
+            sequence_output = self.dropout(sequence_output)
+
         logits = self.classifier(sequence_output)
 
         if labels is not None:
