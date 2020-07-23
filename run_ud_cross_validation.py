@@ -750,6 +750,66 @@ class NerEmbeddiaProcessor(DataProcessor):
         return examples
 
 
+class UdEmbeddiaProcessor(DataProcessor):
+    """Processor for the formatted embeddia data sets."""
+
+    def _read_conllu(self, path):
+        data_file = open(path, "r", encoding="utf-8")
+        sentences = list(parse_incr(data_file))
+        data = []
+        for sentence in sentences:
+            forms = []
+            tags = []
+            misc = []
+            for token in sentence:
+                forms.append(token['form'])
+                tags.append(list(token['head']))
+                misc.append({})
+            data.append((forms, tags, misc))
+        return data
+
+    def get_train_examples(self, data_dir, cv_part, folds, partial_train_data_usage=1.0, read_conllu=False):
+        """See base class."""
+        data = self._read_conllu(data_dir + '-train.conllu')
+
+        return self._create_examples(
+            data, "train")
+
+    def get_dev_examples(self, data_dir, cv_part, read_conllu=False):
+        """See base class."""
+        data = self._read_conllu(data_dir + '-test.conllu')
+        return self._create_examples(data, "dev")
+
+    def get_test_examples(self, data_dir, cv_part, read_conllu=False):
+        """See base class."""
+        data = self._read_conllu(data_dir + '-test.conllu')
+        return self._create_examples(data, "test")
+
+    def get_labels(self, conllu):
+        if conllu:
+            return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-MISC", "I-MISC", "B-DERIV-PER", "I-DERIV-PER", "X", "[CLS]", "[SEP]"]
+        return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
+
+    def get_ud_tags(self):
+        return ud_list
+
+    def get_prefix_tags(self):
+        return prefix_list
+
+    def get_suffix_tags(self):
+        return suffix_list
+
+    def _create_examples(self, lines, set_type):
+        examples = []
+        for i, (sentence, label, other) in enumerate(lines):
+            guid = "%s-%s" % (set_type, i)
+            text_a = ' '.join(sentence)
+            text_b = None
+            label = label
+            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label, other=other))
+        return examples
+
+
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, other=None):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -945,7 +1005,8 @@ def main():
             ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
             ptvsd.wait_for_attach()
 
-        processors = {"nerembeddia": NerEmbeddiaProcessor}
+        processors = {"nerembeddia": NerEmbeddiaProcessor,
+                      "udembeddia": UdEmbeddiaProcessor}
 
         if args.local_rank == -1 or args.no_cuda:
             device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
