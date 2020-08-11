@@ -1366,6 +1366,11 @@ def main():
                         required=True,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
+    parser.add_argument("--config",
+                        default='config.ini',
+                        type=str,
+                        help="Path to config.ini file.")
+
     ## Other parameters
     parser.add_argument("--cache_dir",
                         default="",
@@ -1442,7 +1447,7 @@ def main():
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read(args.config)
 
     args.upos = config.getboolean('settings', 'upos')
     args.feats = config.getboolean('settings', 'feats')
