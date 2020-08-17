@@ -735,7 +735,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         if textlist == ['']:
             continue
         labellist = example.label
-        if other['upos']:
+        if other['upos'] or other['feats']:
             otherlist = example.other
         tokens = []
         labels = []
@@ -793,7 +793,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         segment_ids = []
         label_ids = []
         # create array of arrays of universal_feature_map and upos
-        if other['upos']:
+        if other['upos'] or other['feats']:
             # for beginning tag use 0 - for separators
             other_ids = [[0] for i in range(len(universal_features_map) + 1)]
 
@@ -808,15 +808,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             segment_ids.append(0)
             label_ids.append(label_map[labels[i]])
 
-            if other['upos']:
+            if other['upos'] or other['feats']:
                 this_feat_dict = {}
                 if other['feats'] and others['feats'][i] != '_':
                     word_feats = others['feats'][i].split('|')
                     for feat in word_feats:
                         feat_split = feat.split('=')
                         this_feat_dict[feat_split[0]] = feat_split[1]
-                upos_append = others['upos'][i]
-                other_ids[0].append(ud_map[upos_append])
+                if other['upos']:
+                    upos_append = others['upos'][i]
+                    other_ids[0].append(ud_map[upos_append])
+                else:
+                    other_ids[0].append(0)
                 # add 0 if no feature of specific type is given or correct index of feature if it is given
                 for index, key in enumerate(universal_features_map):
                     if key in this_feat_dict and this_feat_dict[key] in universal_features_map[key]:
@@ -833,7 +836,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         ntokens.append("[SEP]")
         segment_ids.append(0)
         label_ids.append(label_map["[SEP]"])
-        if other['upos']:
+        if other['upos'] or other['feats']:
             for i in range(len(other_ids)):
                 other_ids[i].append(0)
         if other['fixes']:
@@ -847,7 +850,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             input_mask.append(0)
             segment_ids.append(0)
             label_ids.append(0)
-            if other['upos']:
+            if other['upos'] or other['feats']:
                 for i in range(len(other_ids)):
                     other_ids[i].append(0)
             if other['fixes']:
@@ -857,7 +860,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
-        if other['upos']:
+        if other['upos'] or other['feats']:
             assert len(other_ids[0]) == max_seq_length
         if other['fixes']:
             assert len(fix_ids[0]) == max_seq_length
@@ -877,7 +880,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         #         "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
 
 
-        if other['upos']:
+        if other['upos'] or other['feats']:
             if not other['fixes']:
                 fix_ids = None
             features.append(
@@ -912,6 +915,7 @@ suffix_list = []
 test = ['a']
 def main():
     def bert_cross_validation_iteration(cross_validation_part, partial_train_data_usage):
+        global universal_features_map
         if args.server_ip and args.server_port:
             # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
             import ptvsd
@@ -964,7 +968,12 @@ def main():
         prefix_tags_list = processor.get_prefix_tags()
         suffix_tags_list = processor.get_suffix_tags()
         num_labels = len(label_list) + 1
-        num_ud_dependencies = len(ud_tags_list) + 1
+        num_ud_dependencies = 0
+        if args.upos:
+            num_ud_dependencies = len(ud_tags_list) + 1
+        if not args.feats:
+            universal_features_map = None
+
         num_prefixes = len(prefix_tags_list) + 1
         num_suffixes = len(suffix_tags_list) + 1
 
@@ -982,7 +991,7 @@ def main():
         # Prepare model
         cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
                                                                        'distributed_{}'.format(args.local_rank))
-        if args.upos:
+        if args.upos or args.feats:
             model = BertForTokenClassificationUdExpanded.from_pretrained(args.bert_model,
                                                                          cache_dir=cache_dir,
                                                                          num_labels=num_labels,

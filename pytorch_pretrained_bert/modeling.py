@@ -1177,9 +1177,11 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.apply(self.init_bert_weights)
         self.other_embeddings = nn.ModuleList()
-        self.other_embeddings.append(nn.Embedding(upos_num, 15))
-        for feat in others_map:
-            self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
+        if upos_num > 0:
+            self.other_embeddings.append(nn.Embedding(upos_num, 15))
+        if others_map is not None:
+            for feat in others_map:
+                self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
 
         if prefix_num > 1:
             self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings) + 60, config.hidden_size)
@@ -1187,7 +1189,7 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
             self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings),
                                               config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
-        self.ud_embeddings = nn.Embedding(upos_num, 10)
+        # self.ud_embeddings = nn.Embedding(upos_num, 10)
         if prefix_num > 1:
             self.prefix_embeddings = nn.Embedding(prefix_num, 10)
             self.suffix_embeddings = nn.Embedding(suffix_num, 50)
