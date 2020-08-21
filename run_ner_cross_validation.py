@@ -795,7 +795,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # create array of arrays of universal_feature_map and upos
         if other['upos'] or other['feats']:
             # for beginning tag use 0 - for separators
-            other_ids = [[0] for i in range(len(universal_features_map) + 1)]
+            if other['feats']:
+                other_ids = [[0] for i in range(len(universal_features_map) + 1)]
+            else:
+                other_ids = [[0] for i in range(1)]
 
         if other['prefixes']:
             fix_ids = [[0], [0]]
@@ -821,11 +824,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 else:
                     other_ids[0].append(0)
                 # add 0 if no feature of specific type is given or correct index of feature if it is given
-                for index, key in enumerate(universal_features_map):
-                    if key in this_feat_dict and this_feat_dict[key] in universal_features_map[key]:
-                        other_ids[index + 1].append(universal_features_map[key][this_feat_dict[key]])
-                    else:
-                        other_ids[index + 1].append(0)
+                if other['feats']:
+                    for index, key in enumerate(universal_features_map):
+                        if key in this_feat_dict and this_feat_dict[key] in universal_features_map[key]:
+                            other_ids[index + 1].append(universal_features_map[key][this_feat_dict[key]])
+                        else:
+                            other_ids[index + 1].append(0)
 
             if other['fixes']:
                 prefixes_append = others['prefixes'][i]
