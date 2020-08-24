@@ -762,6 +762,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 label_1 = 'O'
                 if other['upos']:
                     upos = "ADP"
+                if other['feats']:
+                    feats = "_"
             else:
                 i = i - parentheses_occurences
                 label_1 = labellist[i]
