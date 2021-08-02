@@ -1170,24 +1170,24 @@ class BertForTokenClassificationUdExpanded(BertPreTrainedModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_labels, upos_num, prefix_num, suffix_num, others_map):
+    def __init__(self, config, num_labels, upos_num, prefix_num, suffix_num, others_map, embeddings_size=15):
         super(BertForTokenClassificationUdExpanded, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.apply(self.init_bert_weights)
         self.other_embeddings = nn.ModuleList()
-        self.other_embeddings.append(nn.Embedding(upos_num, 15))
+        self.other_embeddings.append(nn.Embedding(upos_num, embeddings_size))
         for feat in others_map:
-            self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, 15))
+            self.other_embeddings.append(nn.Embedding(len(others_map[feat]) + 1, embeddings_size))
 
         if prefix_num > 1:
-            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings) + 60, config.hidden_size)
+            self.combined_layer_1 = nn.Linear(config.hidden_size + embeddings_size * len(self.other_embeddings) + 60, config.hidden_size)
         else:
-            self.combined_layer_1 = nn.Linear(config.hidden_size + 15 * len(self.other_embeddings),
+            self.combined_layer_1 = nn.Linear(config.hidden_size + embeddings_size * len(self.other_embeddings),
                                               config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
-        self.ud_embeddings = nn.Embedding(upos_num, 10)
+        # self.ud_embeddings = nn.Embedding(upos_num, 10)
         if prefix_num > 1:
             self.prefix_embeddings = nn.Embedding(prefix_num, 10)
             self.suffix_embeddings = nn.Embedding(suffix_num, 50)

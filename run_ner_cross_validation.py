@@ -1015,7 +1015,8 @@ def main():
                                                                          upos_num=num_ud_dependencies,
                                                                          prefix_num=num_prefixes,
                                                                          suffix_num=num_suffixes,
-                                                                         others_map=universal_features_map)
+                                                                         others_map=universal_features_map,
+                                                                         embeddings_size=args.upos_feats_embeddings_size)
         else:
             model = BertForTokenClassification.from_pretrained(args.bert_model,
                                                                cache_dir=cache_dir,
@@ -1478,6 +1479,7 @@ def main():
     args.train_test = config.getboolean('settings', 'train_test')
     args.folds = config.getint('settings', 'folds')
     args.conllu = config.getboolean('settings', 'conllu')
+    args.upos_feats_embeddings_size = config.getint('settings', 'upos_feats_embeddings_size')
 
     other_features = {
         'upos': config.getboolean('settings', 'upos'),
