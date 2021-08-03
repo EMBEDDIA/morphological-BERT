@@ -1016,7 +1016,8 @@ def main():
                                                                          prefix_num=num_prefixes,
                                                                          suffix_num=num_suffixes,
                                                                          others_map=universal_features_map,
-                                                                         embeddings_size=args.upos_feats_embeddings_size)
+                                                                         upos_embeddings_size=args.upos_embeddings_size,
+                                                                         feats_embeddings_size=args.feats_embeddings_size)
         else:
             model = BertForTokenClassification.from_pretrained(args.bert_model,
                                                                cache_dir=cache_dir,
@@ -1466,10 +1467,11 @@ def main():
                              "Positive power of 2: static loss scaling value.\n")
     parser.add_argument('--server_ip', type=str, default='', help="Can be used for distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="Can be used for distant debugging.")
+    parser.add_argument("--config", default='config.ini', type=str, help="Path to config.ini file.")
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read(args.config)
 
     args.upos = config.getboolean('settings', 'upos')
     args.feats = config.getboolean('settings', 'feats')
@@ -1479,7 +1481,8 @@ def main():
     args.train_test = config.getboolean('settings', 'train_test')
     args.folds = config.getint('settings', 'folds')
     args.conllu = config.getboolean('settings', 'conllu')
-    args.upos_feats_embeddings_size = config.getint('settings', 'upos_feats_embeddings_size')
+    args.upos_embeddings_size = config.getint('settings', 'upos_embeddings_size')
+    args.feats_embeddings_size = config.getint('settings', 'feats_embeddings_size')
 
     other_features = {
         'upos': config.getboolean('settings', 'upos'),
